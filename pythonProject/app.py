@@ -2,6 +2,7 @@ from flask import Flask, render_template, request
 import pickle
 import numpy as np
 
+# Load pickled data
 popular_df = pickle.load(open('popular.pkl', 'rb'))
 pt = pickle.load(open('pt.pkl', 'rb'))
 books = pickle.load(open('books.pkl', 'rb'))
@@ -17,8 +18,7 @@ def index():
                            author=list(popular_df['Book-Author'].values),
                            image=list(popular_df['Image-URL-M'].values),
                            votes=list(popular_df['num_ratings'].values),
-                           rating=list(popular_df['avg_rating'].values)
-                           )
+                           rating=list(popular_df['avg_rating'].values))
 
 
 @app.route('/recommend')
@@ -28,11 +28,16 @@ def recommend_ui():
 
 @app.route('/recommend_books', methods=['post'])
 def recommend():
-    user_input = request.form.get('user_input')
+    user_input = request.form.get('user_input').lower()  # Convert user input to lowercase for case-insensitive matching
 
-    # Check if the input book is in the dataset
-    if user_input not in pt.index:
+    # Find books containing the user_input substring (partial matching)
+    matches = [book for book in pt.index if user_input in book.lower()]
+
+    if not matches:
         return render_template('recommend.html', data=[['Book not available in the dataset']])
+
+    # Use the first match for similarity search (you can improve this to show multiple matches if needed)
+    user_input = matches[0]  # Choose the first match
 
     index = np.where(pt.index == user_input)[0][0]
     similar_items = sorted(list(enumerate(similarity_scores[index])), key=lambda x: x[1], reverse=True)[1:5]
@@ -46,8 +51,6 @@ def recommend():
         item.extend(list(temp_df.drop_duplicates('Book-Title')['Image-URL-M'].values))
 
         data.append(item)
-
-    print(data)
 
     return render_template('recommend.html', data=data)
 
